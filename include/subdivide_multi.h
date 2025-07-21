@@ -16,7 +16,9 @@
 //#define Only_Geometry_3
 //#define CSG_Base
 //#define MI_Base
+#include <iomanip>
 #include <iostream>
+#include <ostream>
 #include <string>
 #include <valarray>
 #include <array>
@@ -30,7 +32,7 @@ using namespace std;
 int sub_call_two = 0;
 int sub_call_three = 0;
 
-llvm_vecsmall::SmallVector<llvm_vecsmall::SmallVector<llvm_vecsmall::SmallVector<array<int, 4>, 100>, 3>, 20> multiple_indices;
+//llvm_vecsmall::SmallVector<llvm_vecsmall::SmallVector<llvm_vecsmall::SmallVector<array<int, 4>, 100>, 3>, 20> multiple_indices;
 
 enum geo_obj {
     IA,
@@ -252,7 +254,7 @@ llvm_vecsmall::SmallVector<llvm_vecsmall::SmallVector<double, 20>, 20> matrixMul
     return result;
 }
 
-
+/*
 bool subTet(std::array<std::array<double, 3>,4> &pts,
             const llvm_vecsmall::SmallVector<std::array<double,4>, 20> &vals,
             const llvm_vecsmall::SmallVector<std::array<std::array<double, 3>,4>, 20> &grads, const double threshold, bool& active) {
@@ -551,6 +553,9 @@ bool subTet(std::array<std::array<double, 3>,4> &pts,
     }
     return false;
 }
+*/
+
+StatLogger<int> ActiveFuncLogger("activeFuncs");
 
 bool subMI(std::array<std::array<double, 3>,4> &pts,
            const llvm_vecsmall::SmallVector<std::array<double,4>, 20> &vals,
@@ -573,12 +578,11 @@ bool subMI(std::array<std::array<double, 3>,4> &pts,
     llvm_vecsmall::SmallVector<bool, 20> activeList(funcNum);
     llvm_vecsmall::SmallVector<array<double , 2>, 20> funcInt(funcNum);
     double maxLow = -1 * numeric_limits<double>::infinity();
-    llvm_vecsmall::SmallVector<llvm_vecsmall::SmallVector<bool, 20>, 20> activePair(funcNum, llvm_vecsmall::SmallVector<bool, 20>(false, funcNum));
-    
+    llvm_vecsmall::SmallVector<llvm_vecsmall::SmallVector<bool, 20>, 20> activePair(funcNum, llvm_vecsmall::SmallVector<bool, 20>(funcNum, false));
     //single function linearity check:
-    for (int funcIter = 0; funcIter < funcNum; funcIter++){
-        double v0 = vals[funcIter][0], v1 = vals[funcIter][1], v2 = vals[funcIter][2], v3 = vals[funcIter][3];
-        std::array<double, 3> g0 = grads[funcIter][0], g1 = grads[funcIter][1], g2 = grads[funcIter][2], g3 = grads[funcIter][3];
+    for (int funcIter = 0; funcIter < funcNum; funcIter++){ //iterate over functions
+        double v0 = vals[funcIter][0], v1 = vals[funcIter][1], v2 = vals[funcIter][2], v3 = vals[funcIter][3];//function vals
+        std::array<double, 3> g0 = grads[funcIter][0], g1 = grads[funcIter][1], g2 = grads[funcIter][2], g3 = grads[funcIter][3];//function gadient
         // Bezier control points
         std::array<double, 3> v0s = {v0 + dot(g0, vec1) / 3, v0 + dot(g0, vec2) / 3, v0 + dot(g0, vec3) / 3};
         std::array<double, 3> v1s = {v1 + dot(g1, vec4) / 3, v1 + dot(g1, vec5) / 3, v1 - dot(g1, vec1) / 3};
@@ -605,7 +609,7 @@ bool subMI(std::array<std::array<double, 3>,4> &pts,
     //llvm_vecsmall::SmallVector<std::array<double, 20>, 20> active_valList;
     llvm_vecsmall::SmallVector<int, 20> activeFunc;
     for (int funcIter = 0; funcIter < funcNum; funcIter++){
-        if(funcInt[funcIter][1] > maxLow){
+        if(funcInt[funcIter][1] > maxLow){ //maxlow is the highest lower bound of a function. all functions with an upper bound greater than the highest lower bound are active
             activeFunc.push_back(funcIter);
             //active_valList.push_back(valList[funcIter]);
         }
@@ -614,20 +618,24 @@ bool subMI(std::array<std::array<double, 3>,4> &pts,
     activeFunc.resize(funcNum);
     for (size_t funcIter = 0; funcIter < funcNum; funcIter++){
         activeFunc[funcIter] = funcIter;
-    }
+    }       
 #endif
     int activeNum = activeFunc.size();
+    ActiveFuncLogger.AddValue(activeNum);
     if(activeNum < 2)
         return false;
-    
+    //std::cout << activeNum << std::endl; 
     //Timer get_func_timer(getActiveMuti, [&](auto profileResult){profileTimer = combine_timer(profileTimer, profileResult);});
     
     
-    const int pairNum = activeNum * (activeNum-1)/2, triNum = activeNum * (activeNum-1) * (activeNum - 2)/ 6, quadNum = activeNum * (activeNum - 1) * (activeNum - 2) * (activeNum - 3)/ 24;
+    const int pairNum = activeNum * (activeNum-1)/2;
+    const int triNum = activeNum * (activeNum-1) * (activeNum - 2)/ 6;
+    const int quadNum = activeNum * (activeNum - 1) * (activeNum - 2) * (activeNum - 3)/ 24;
+
     llvm_vecsmall::SmallVector<array<int, 2>,40> pair(pairNum);
     llvm_vecsmall::SmallVector<array<int, 3>, 100> triple(triNum);
     llvm_vecsmall::SmallVector<array<int, 4>, 300> quad(quadNum);
-    llvm_vecsmall::SmallVector<llvm_vecsmall::SmallVector<array<int, 4>, 100>, 3> multiples = multiple_indices[activeNum - 1];
+    //llvm_vecsmall::SmallVector<llvm_vecsmall::SmallVector<array<int, 4>, 100>, 3> multiples = multiple_indices[activeNum - 1];
 //    int pairIt = 0, triIt = 0, quadIt = 0;
 //    for (int i = 0; i < activeNum - 1; i++){
 //        for (int j = i + 1; j < activeNum; j++){
@@ -648,199 +656,237 @@ bool subMI(std::array<std::array<double, 3>,4> &pts,
 //        }
 //    }
 //    get_func_timer.Stop();
-    
-    for (int pairIter = 0; pairIter < pairNum; pairIter ++){
-        Timer single_timer(singleFunc, [&](auto profileResult){profileTimer = combine_timer(profileTimer, profileResult);});
-        array<int, 2> pairIndices = {multiples[0][pairIter][0],multiples[0][pairIter][1]};
-        pair[pairIter] = {activeFunc[pairIndices[0]], activeFunc[pairIndices[1]]};
-        array<double, 20> diff_at_point;
-        int funcIndex1 = pair[pairIter][0];
-        int funcIndex2 = pair[pairIter][1];
-        for (int i = 0; i < 20; i++){
-            diff_at_point[i] = valList[funcIndex1][i] - valList[funcIndex2][i];
-        }
-        bool activeTF = get_sign(*std::max_element(diff_at_point.begin(), diff_at_point.end())) == get_sign(*std::min_element(diff_at_point.begin(), diff_at_point.end())) ? false : true;
-        single_timer.Stop();
-        if (activeTF){
-            if (!active){
-                active = true;
-            }
-            activePair[pair[pairIter][0]][pair[pairIter][1]] = true;
-            activePair[pair[pairIter][1]][pair[pairIter][0]] = true;
-            if (!activeList[funcIndex1]){
-                activeList[funcIndex1] = true;
-                double d1 = valList[funcIndex1][1]-valList[funcIndex1][0], d2 = valList[funcIndex1][2]-valList[funcIndex1][0], d3 = valList[funcIndex1][3]-valList[funcIndex1][0];
-                llvm_vecsmall::SmallVector<double, 20> unNormF = matrixMultiply(llvm_vecsmall::SmallVector<llvm_vecsmall::SmallVector<double, 20>, 20>({{d1, d2, d3}}), crossMatrix)[0];
-                gradList[funcIndex1] = {unNormF[0],unNormF[1],unNormF[2]};
-                
-                for (int i = 0; i < 16; ++i) {
-                    diffList[funcIndex1][i] = valList[funcIndex1][i + 4] -
-                    (valList[funcIndex1][0] * coeff[i][0] + valList[funcIndex1][1] * coeff[i][1] + valList[funcIndex1][2] * coeff[i][2] + valList[funcIndex1][3] * coeff[i][3]) / 3.0;
-                }
-                //errorList[funcIndex1] = std::max(*max_element(diffList[funcIndex1].begin(), diffList[funcIndex1].end()), std::abs(*min_element(diffList[funcIndex1].begin(), diffList[funcIndex1].end())));
-            }
-            if (!activeList[funcIndex2]){
-                activeList[funcIndex2] = true;
-                double d1 = valList[funcIndex2][1]-valList[funcIndex2][0], d2 = valList[funcIndex2][2]-valList[funcIndex2][0], d3 = valList[funcIndex2][3]-valList[funcIndex2][0];
-                llvm_vecsmall::SmallVector<double, 20> unNormF = matrixMultiply(llvm_vecsmall::SmallVector<llvm_vecsmall::SmallVector<double, 20>, 20>({{d1, d2, d3}}), crossMatrix)[0];
-                gradList[funcIndex2] = {unNormF[0],unNormF[1],unNormF[2]};
-                
-                for (int i = 0; i < 16; ++i) {
-                    diffList[funcIndex2][i] = valList[funcIndex2][i + 4] -
-                    (valList[funcIndex2][0] * coeff[i][0] + valList[funcIndex2][1] * coeff[i][1] + valList[funcIndex2][2] * coeff[i][2] + valList[funcIndex2][3] * coeff[i][3]) / 3.0;
-                }
-                //errorList[funcIndex1] = std::max(*max_element(diffList[funcIndex2].begin(), diffList[funcIndex2].end()), std::abs(*min_element(diffList[funcIndex2].begin(), diffList[funcIndex2].end())));
-            }
-            array<double, 16> diff_twofunc;
-            for (int i = 0; i < 16; ++i){
-                diff_twofunc[i] = diffList[funcIndex1][i] - diffList[funcIndex2][i];
-            }
+    int pairIter = -1; 
+    for(int i = 0; i<activeNum - 1; i++){
+        for(int j = i+1; j<activeNum; j++){
+            pairIter++;
+            Timer single_timer(singleFunc, [&](auto profileResult){profileTimer = combine_timer(profileTimer, profileResult);});
+            array<int, 2> pairIndices = {i, j};
+            pair[pairIter] = {activeFunc[pairIndices[0]], activeFunc[pairIndices[1]]};
+            array<double, 20> diff_at_point; // delta of function evaluations
             
-            Timer single2_timer(singleFunc, [&](auto profileResult){profileTimer = combine_timer(profileTimer, profileResult);});
-            double error =std::max(*max_element(diff_twofunc.begin(), diff_twofunc.end()), std::abs(*min_element(diff_twofunc.begin(), diff_twofunc.end())));
-            array<double, 3> grad;
-            for (int i = 0; i < 3; ++i){
-                grad[i] = gradList[funcIndex1][i] - gradList[funcIndex2][i];
+            int funcIndex1 = pair[pairIter][0];
+            int funcIndex2 = pair[pairIter][1];
+            for (int i = 0; i < 20; i++){
+                diff_at_point[i] = valList[funcIndex1][i] - valList[funcIndex2][i];
             }
-            double lhs = error * error * sqD;
-            double rhs;
-            if (!curve_network){
-                rhs = threshold * threshold * dot(grad, grad);
-            }else{
-                rhs = numeric_limits<double>::infinity() * dot(grad, grad);
-            }
-            //cout << lhs << " " << rhs << endl;
-            if (lhs > rhs) {
+
+            bool activeTF = get_sign(*std::max_element(diff_at_point.begin(), diff_at_point.end())) == get_sign(*std::min_element(diff_at_point.begin(), diff_at_point.end())) ? false : true;
+            //is the sign of the max element the same as the sign of the min element? -> zero crossing test -> if we are crossing zero in the function delta, there must be a point where the two functions are equal --> that would be a point in the MI
+            single_timer.Stop();
+            if (activeTF){
+                if (!active){ // ??? this could simply be active = true
+                    active = true;
+                }
+                activePair[pair[pairIter][0]][pair[pairIter][1]] = true;
+                activePair[pair[pairIter][1]][pair[pairIter][0]] = true;
+                if (!activeList[funcIndex1]){
+                    activeList[funcIndex1] = true;
+                    double d1 = valList[funcIndex1][1]-valList[funcIndex1][0];
+                    double d2 = valList[funcIndex1][2]-valList[funcIndex1][0]; 
+                    double d3 = valList[funcIndex1][3]-valList[funcIndex1][0];
+                    llvm_vecsmall::SmallVector<double, 20> unNormF = matrixMultiply(llvm_vecsmall::SmallVector<llvm_vecsmall::SmallVector<double, 20>, 20>({{d1, d2, d3}}), crossMatrix)[0];
+                    gradList[funcIndex1] = {unNormF[0],unNormF[1],unNormF[2]};
+                    
+                    for (int i = 0; i < 16; ++i) {
+                        diffList[funcIndex1][i] = valList[funcIndex1][i + 4] -
+                            (
+                                  valList[funcIndex1][0] * coeff[i][0] 
+                                + valList[funcIndex1][1] * coeff[i][1] 
+                                + valList[funcIndex1][2] * coeff[i][2] 
+                                + valList[funcIndex1][3] * coeff[i][3]
+                            ) / 3.0;
+                    }
+                    //std::cout << "----vallist----" << std::endl;
+                    //for(int i = 0; i<20; i++) std::cout << "[" << i << "] " << valList[funcIndex1][i] << std::endl;
+                    //std::cout << "---------------" << std::endl;
+                    //errorList[funcIndex1] = std::max(*max_element(diffList[funcIndex1].begin(), diffList[funcIndex1].end()), std::abs(*min_element(diffList[funcIndex1].begin(), diffList[funcIndex1].end())));
+                }
+                if (!activeList[funcIndex2]){
+                    activeList[funcIndex2] = true;
+                    double d1 = valList[funcIndex2][1]-valList[funcIndex2][0], d2 = valList[funcIndex2][2]-valList[funcIndex2][0], d3 = valList[funcIndex2][3]-valList[funcIndex2][0];
+                    llvm_vecsmall::SmallVector<double, 20> unNormF = matrixMultiply(llvm_vecsmall::SmallVector<llvm_vecsmall::SmallVector<double, 20>, 20>({{d1, d2, d3}}), crossMatrix)[0];
+                    gradList[funcIndex2] = {unNormF[0],unNormF[1],unNormF[2]};
+                    
+                    for (int i = 0; i < 16; ++i) {
+                        diffList[funcIndex2][i] = valList[funcIndex2][i + 4] -
+                        (valList[funcIndex2][0] * coeff[i][0] + valList[funcIndex2][1] * coeff[i][1] + valList[funcIndex2][2] * coeff[i][2] + valList[funcIndex2][3] * coeff[i][3]) / 3.0;
+                    }
+                    //std::cout << "----vallist----" << std::endl;
+                    //for(int i = 0; i<20; i++) std::cout << "[" << i << "] " << valList[funcIndex2][i] << std::endl;
+                    //std::cout << "---------------" << std::endl;
+                    //errorList[funcIndex1] = std::max(*max_element(diffList[funcIndex2].begin(), diffList[funcIndex2].end()), std::abs(*min_element(diffList[funcIndex2].begin(), diffList[funcIndex2].end())));
+                }
+                //std::cout << "---------" << std::endl;
+                array<double, 16> diff_twofunc;
+                for (int i = 0; i < 16; ++i){
+                    //diff_twofunc[i] = std::max(std::abs(diffList[funcIndex1][i]), std::abs(diffList[funcIndex2][i]));
+                    diff_twofunc[i] = diffList[funcIndex1][i] - diffList[funcIndex2][i];
+                    //std::cout << diffList[funcIndex1][i] << " - " << diffList[funcIndex2][i] << " = " << diff_twofunc[i] << std::endl;
+                }
+                //std::cout << endl;        
+                Timer single2_timer(singleFunc, [&](auto profileResult){profileTimer = combine_timer(profileTimer, profileResult);});
+                double error =std::max(*max_element(diff_twofunc.begin(), diff_twofunc.end()), 
+                                        std::abs(*min_element(diff_twofunc.begin(), diff_twofunc.end()))
+                                        );
+                array<double, 3> grad;
+                for (int i = 0; i < 3; ++i){
+                    grad[i] = gradList[funcIndex1][i] - gradList[funcIndex2][i];
+                }
+                //std::cout << "Error: " << error << " sqD: " << sqD << std::endl;
+                double lhs = error * error * sqD;
+                double rhs;
+                if (!curve_network){
+                    rhs = threshold * threshold * dot(grad, grad);
+                }else{
+                    rhs = numeric_limits<double>::infinity() * dot(grad, grad);
+                }
+                //std::cout << lhs << " " << rhs << endl;
+                if (lhs > rhs) {
+                    single2_timer.Stop();
+                    return score;
+                }
                 single2_timer.Stop();
-                return score;
+                
             }
-            single2_timer.Stop();
-            
         }
     }
-    
     // 2-function checks
     int activeTriple_count = 0;
     {
         Timer timer(twoFunc, [&](auto profileResult){profileTimer = combine_timer(profileTimer, profileResult);});
         bool zeroX;
-        for (int tripleIter = 0; tripleIter < triNum; tripleIter ++){
-            array<int, 3> tripleIndices = {multiples[1][tripleIter][0], multiples[1][tripleIter][1], multiples[1][tripleIter][2]};
-            triple[tripleIter] = {activeFunc[tripleIndices[0]], activeFunc[tripleIndices[1]], activeFunc[tripleIndices[2]]};
-            int funcIndex1 = triple[tripleIter][0];
-            int funcIndex2 = triple[tripleIter][1];
-            int funcIndex3 = triple[tripleIter][2];
-            if(!(activePair[funcIndex1][funcIndex2]&&activePair[funcIndex1][funcIndex3]&&activePair[funcIndex2][funcIndex3]))
-                continue;
-            array<double, 20> diffList1, diffList2;
-            for (int i = 0; i < 20; ++i){
-                diffList1[i] = valList[funcIndex1][i] - valList[funcIndex2][i];
-                diffList2[i] = valList[funcIndex2][i] - valList[funcIndex3][i];
-            }
-            std::array<double, 40> nPoints = transpose2d({diffList1, diffList2});// X0, Y0, X1, Y1, ...
-            std::array<double, 2> query = {0.0, 0.0}; // X, Y
-            sub_call_two ++;
-            Timer sub_timer(sub_twoFunc, [&](auto profileResult){profileTimer = combine_timer(profileTimer, profileResult);});
-            zeroX = convex_hull_membership::contains<2, double>(nPoints, query);
-            sub_timer.Stop();
+        int tripleIter = -1;
+        for(int i = 0; i<activeNum-2; i++){
+            for(int j = i+1; j<activeNum-1; j++){
+                for(int k = j+1; k<activeNum; k++){
+                    tripleIter++;
+                    array<int, 3> tripleIndices = {i, j, k};
+                    triple[tripleIter] = {activeFunc[tripleIndices[0]], activeFunc[tripleIndices[1]], activeFunc[tripleIndices[2]]};
+                    int funcIndex1 = triple[tripleIter][0];
+                    int funcIndex2 = triple[tripleIter][1];
+                    int funcIndex3 = triple[tripleIter][2];
+                    if(!(activePair[funcIndex1][funcIndex2]&&activePair[funcIndex1][funcIndex3]&&activePair[funcIndex2][funcIndex3]))
+                        continue;
+                    array<double, 20> diffList1, diffList2;
+                    for (int i = 0; i < 20; ++i){
+                        diffList1[i] = valList[funcIndex1][i] - valList[funcIndex2][i];
+                        diffList2[i] = valList[funcIndex2][i] - valList[funcIndex3][i];
+                    }
+                    std::array<double, 40> nPoints = transpose2d({diffList1, diffList2});// X0, Y0, X1, Y1, ...
+                    std::array<double, 2> query = {0.0, 0.0}; // X, Y
+                    sub_call_two ++;
+                    Timer sub_timer(sub_twoFunc, [&](auto profileResult){profileTimer = combine_timer(profileTimer, profileResult);});
+                    zeroX = convex_hull_membership::contains<2, double>(nPoints, query);
+                    sub_timer.Stop();
 #ifdef No_Multi_Check
-            return false;
+                    return false;
 #endif
-            if (zeroX){
-                activeTriple_count++;
-                array<double, 16> diff_twofunc1, diff_twofunc2;
-                for (int i = 0; i < 16; ++i){
-                    diff_twofunc1[i] = diffList[funcIndex1][i] - diffList[funcIndex2][i];
-                    diff_twofunc2[i] = diffList[funcIndex2][i] - diffList[funcIndex3][i];
-                }
-                array<double, 3> grad1, grad2;
-                for (int i = 0; i < 3; ++i){
-                    grad1[i] = gradList[funcIndex1][i] - gradList[funcIndex2][i];
-                    grad2[i] = gradList[funcIndex2][i] - gradList[funcIndex3][i];
-                }
-                
-                // two function linearity test:
-                std::array<double, 2> w1 = {dot(grad1, grad1), dot(grad1, grad2)};
-                std::array<double, 2> w2 = {dot(grad1, grad2), dot(grad2, grad2)};
-                double E = det(w1, w2);
-                std::array<double, 2>invPerp_w2 = perp(w2);
-                for(int i = 0; i < 2; i++){
-                    invPerp_w2[i] *= -1;
-                }
-                std::array<double, 2> perp_w1 = perp(w1);
-                llvm_vecsmall::SmallVector<llvm_vecsmall::SmallVector<double, 20>, 20> H = matrixMultiply(llvm_vecsmall::SmallVector<llvm_vecsmall::SmallVector<double, 20>, 20>({llvm_vecsmall::SmallVector<double, 20>(std::begin(invPerp_w2), std::end(invPerp_w2)), llvm_vecsmall::SmallVector<double, 20>(std::begin(perp_w1), std::end(perp_w1))}), llvm_vecsmall::SmallVector<llvm_vecsmall::SmallVector<double, 20>, 20>({llvm_vecsmall::SmallVector<double, 20>(std::begin(grad1), std::end(grad1)), llvm_vecsmall::SmallVector<double, 20>(std::begin(grad2), std::end(grad2))}));
-                
-                //find the largest max error (max squared gamma: the LHS of the equation) among all 16 bezier control points
-                double maxGammaSq = 0;
-                for (int i = 0; i < 16; i++){
-                    //std::cout << diffList[pair[pairIter][0]][i] << " " << diffList[pair[pairIter][1]][i] << std::endl;
-                    llvm_vecsmall::SmallVector<double, 20> unNormDis = matrixMultiply(llvm_vecsmall::SmallVector<llvm_vecsmall::SmallVector<double, 20>, 20>({{diff_twofunc1[i], diff_twofunc2[i]}}), llvm_vecsmall::SmallVector<llvm_vecsmall::SmallVector<double, 20>, 20>(H))[0];
-                    double currError = sqD * dot(unNormDis, unNormDis);
-                    if (maxGammaSq < currError)
-                        maxGammaSq = currError;
-                }
-                if (maxGammaSq > threshold*threshold * E*E){
-                    timer.Stop();
-                    return score;
+                    if (zeroX){
+                        activeTriple_count++;
+                        array<double, 16> diff_twofunc1, diff_twofunc2;
+                        for (int i = 0; i < 16; ++i){
+                            diff_twofunc1[i] = diffList[funcIndex1][i] - diffList[funcIndex2][i];
+                            diff_twofunc2[i] = diffList[funcIndex2][i] - diffList[funcIndex3][i];
+                        }
+                        array<double, 3> grad1, grad2;
+                        for (int i = 0; i < 3; ++i){
+                            grad1[i] = gradList[funcIndex1][i] - gradList[funcIndex2][i];
+                            grad2[i] = gradList[funcIndex2][i] - gradList[funcIndex3][i];
+                        }
+                        
+                        // two function linearity test:
+                        std::array<double, 2> w1 = {dot(grad1, grad1), dot(grad1, grad2)};
+                        std::array<double, 2> w2 = {dot(grad1, grad2), dot(grad2, grad2)};
+                        double E = det(w1, w2);
+                        std::array<double, 2>invPerp_w2 = perp(w2);
+                        for(int i = 0; i < 2; i++){
+                            invPerp_w2[i] *= -1;
+                        }
+                        std::array<double, 2> perp_w1 = perp(w1);
+                        llvm_vecsmall::SmallVector<llvm_vecsmall::SmallVector<double, 20>, 20> H = matrixMultiply(llvm_vecsmall::SmallVector<llvm_vecsmall::SmallVector<double, 20>, 20>({llvm_vecsmall::SmallVector<double, 20>(std::begin(invPerp_w2), std::end(invPerp_w2)), llvm_vecsmall::SmallVector<double, 20>(std::begin(perp_w1), std::end(perp_w1))}), llvm_vecsmall::SmallVector<llvm_vecsmall::SmallVector<double, 20>, 20>({llvm_vecsmall::SmallVector<double, 20>(std::begin(grad1), std::end(grad1)), llvm_vecsmall::SmallVector<double, 20>(std::begin(grad2), std::end(grad2))}));
+                        
+                        //find the largest max error (max squared gamma: the LHS of the equation) among all 16 bezier control points
+                        double maxGammaSq = 0;
+                        for (int i = 0; i < 16; i++){
+                            //std::cout << diffList[pair[pairIter][0]][i] << " " << diffList[pair[pairIter][1]][i] << std::endl;
+                            llvm_vecsmall::SmallVector<double, 20> unNormDis = matrixMultiply(llvm_vecsmall::SmallVector<llvm_vecsmall::SmallVector<double, 20>, 20>({{diff_twofunc1[i], diff_twofunc2[i]}}), llvm_vecsmall::SmallVector<llvm_vecsmall::SmallVector<double, 20>, 20>(H))[0];
+                            double currError = sqD * dot(unNormDis, unNormDis);
+                            if (maxGammaSq < currError)
+                                maxGammaSq = currError;
+                        }
+                        if (maxGammaSq > threshold*threshold * E*E){
+                            timer.Stop();
+                            return score;
+                        }
+                    }
                 }
             }
+            
         }
         timer.Stop();
     }
-    if(activeTriple_count < 4)
-        return false;
+        if(activeTriple_count < 4)
+            return false;
     {
         Timer timer(threeFunc, [&](auto profileResult){profileTimer = combine_timer(profileTimer, profileResult);});
         bool zeroX;
-        for (int quadIter = 0; quadIter < quadNum; quadIter ++){
-            array<int, 4> quadIndices = {multiples[2][quadIter][0], multiples[2][quadIter][1], multiples[2][quadIter][2],multiples[2][quadIter][3]};
-            quad[quadIter] = {activeFunc[quadIndices[0]], activeFunc[quadIndices[1]], activeFunc[quadIndices[2]],activeFunc[quadIndices[3]]};
-            int funcIndex1 = quad[quadIter][0];
-            int funcIndex2 = quad[quadIter][1];
-            int funcIndex3 = quad[quadIter][2];
-            int funcIndex4 = quad[quadIter][3];
-            if(!(activePair[funcIndex1][funcIndex2]&&activePair[funcIndex1][funcIndex3]&&activePair[funcIndex1][funcIndex4]&&activePair[funcIndex2][funcIndex3]&&activePair[funcIndex2][funcIndex4]&&activePair[funcIndex3][funcIndex4]))
-                continue;
-            array<double, 20> diffList1, diffList2, diffList3;
-            for (int i = 0; i < 20; ++i){
-                diffList1[i] = valList[funcIndex1][i] - valList[funcIndex2][i];
-                diffList2[i] = valList[funcIndex2][i] - valList[funcIndex3][i];
-                diffList3[i] = valList[funcIndex3][i] - valList[funcIndex4][i];
-            }
-            std::array<double, 60> nPoints = transpose3d({diffList1, diffList2, diffList3});
-            std::array<double, 3> query = {0.0, 0.0, 0.0}; // X, Y, Z
-            sub_call_three ++;
-            Timer sub_timer(sub_threeFunc, [&](auto profileResult){profileTimer = combine_timer(profileTimer, profileResult);});
-            zeroX = convex_hull_membership::contains<3, double>(nPoints, query);
-            sub_timer.Stop();
+        int quadIter = -1;
+        for (int i = 0; i<activeNum-3; i++){
+            for(int j = i+1; j<activeNum-2; j++){
+                for(int k = j+1; k<activeNum-1; k++){
+                    for(int m = k+1; m<activeNum; m++){
+                        array<int, 4> quadIndices = {i, j, k, m};
+                        quad[quadIter] = {activeFunc[quadIndices[0]], activeFunc[quadIndices[1]], activeFunc[quadIndices[2]],activeFunc[quadIndices[3]]};
+                        int funcIndex1 = quad[quadIter][0];
+                        int funcIndex2 = quad[quadIter][1];
+                        int funcIndex3 = quad[quadIter][2];
+                        int funcIndex4 = quad[quadIter][3];
+                        if(!(activePair[funcIndex1][funcIndex2]&&activePair[funcIndex1][funcIndex3]&&activePair[funcIndex1][funcIndex4]&&activePair[funcIndex2][funcIndex3]&&activePair[funcIndex2][funcIndex4]&&activePair[funcIndex3][funcIndex4]))
+                            continue;
+                        array<double, 20> diffList1, diffList2, diffList3;
+                        for (int i = 0; i < 20; ++i){
+                            diffList1[i] = valList[funcIndex1][i] - valList[funcIndex2][i];
+                            diffList2[i] = valList[funcIndex2][i] - valList[funcIndex3][i];
+                            diffList3[i] = valList[funcIndex3][i] - valList[funcIndex4][i];
+                        }
+                        std::array<double, 60> nPoints = transpose3d({diffList1, diffList2, diffList3});
+                        std::array<double, 3> query = {0.0, 0.0, 0.0}; // X, Y, Z
+                        sub_call_three ++;
+                        Timer sub_timer(sub_threeFunc, [&](auto profileResult){profileTimer = combine_timer(profileTimer, profileResult);});
+                        zeroX = convex_hull_membership::contains<3, double>(nPoints, query);
+                        sub_timer.Stop();
 #ifdef No_Multi_Check_3
-            return false;
+                        return false;
 #endif
-            if (zeroX){
-                array<double, 16> diff_twofunc1, diff_twofunc2, diff_twofunc3;
-                for (int i = 0; i < 16; ++i){
-                    diff_twofunc1[i] = diffList[funcIndex1][i] - diffList[funcIndex2][i];
-                    diff_twofunc2[i] = diffList[funcIndex2][i] - diffList[funcIndex3][i];
-                    diff_twofunc3[i] = diffList[funcIndex3][i] - diffList[funcIndex4][i];
-                }
-                array<double, 3> fi, fj, fk;
-                for (int i = 0; i < 3; ++i){
-                    fi[i] = gradList[funcIndex1][i] - gradList[funcIndex2][i];
-                    fj[i] = gradList[funcIndex2][i] - gradList[funcIndex3][i];
-                    fk[i] = gradList[funcIndex3][i] - gradList[funcIndex4][i];
-                }
-                double E = det(fi, fj, fk);
-                llvm_vecsmall::SmallVector<llvm_vecsmall::SmallVector<double, 20>, 20> H = {cross(fj, fk), cross(fk, fi), cross(fi, fj)};
-                double maxGammaSq = 0;
-                for (int i = 0; i < 16; i++){
-                    llvm_vecsmall::SmallVector<double, 20> unNormDis = matrixMultiply(llvm_vecsmall::SmallVector<llvm_vecsmall::SmallVector<double, 20>, 20>({{diff_twofunc1[i], diff_twofunc2[i], diff_twofunc3[i]}}), H)[0];
-                    double currError = sqD * dot(unNormDis, unNormDis);
-                    if (maxGammaSq < currError)
-                        maxGammaSq = currError;
-                }
-                if (maxGammaSq > threshold*threshold * E*E){
-                    timer.Stop();
-                    return score;
+                        if (zeroX){
+                            array<double, 16> diff_twofunc1, diff_twofunc2, diff_twofunc3;
+                            for (int i = 0; i < 16; ++i){
+                                diff_twofunc1[i] = diffList[funcIndex1][i] - diffList[funcIndex2][i];
+                                diff_twofunc2[i] = diffList[funcIndex2][i] - diffList[funcIndex3][i];
+                                diff_twofunc3[i] = diffList[funcIndex3][i] - diffList[funcIndex4][i];
+                            }
+                            array<double, 3> fi, fj, fk;
+                            for (int i = 0; i < 3; ++i){
+                                fi[i] = gradList[funcIndex1][i] - gradList[funcIndex2][i];
+                                fj[i] = gradList[funcIndex2][i] - gradList[funcIndex3][i];
+                                fk[i] = gradList[funcIndex3][i] - gradList[funcIndex4][i];
+                            }
+                            double E = det(fi, fj, fk);
+                            llvm_vecsmall::SmallVector<llvm_vecsmall::SmallVector<double, 20>, 20> H = {cross(fj, fk), cross(fk, fi), cross(fi, fj)};
+                            double maxGammaSq = 0;
+                            for (int i = 0; i < 16; i++){
+                                llvm_vecsmall::SmallVector<double, 20> unNormDis = matrixMultiply(llvm_vecsmall::SmallVector<llvm_vecsmall::SmallVector<double, 20>, 20>({{diff_twofunc1[i], diff_twofunc2[i], diff_twofunc3[i]}}), H)[0];
+                                double currError = sqD * dot(unNormDis, unNormDis);
+                                if (maxGammaSq < currError)
+                                    maxGammaSq = currError;
+                            }
+                            if (maxGammaSq > threshold*threshold * E*E){
+                                timer.Stop();
+                                return score;
+                            }
+                        }
+                        }
                 }
             }
         }
