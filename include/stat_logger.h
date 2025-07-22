@@ -24,7 +24,7 @@ StatLogger<DataType>::StatLogger(const std::string &filepath) : _stream(filepath
 
 template<typename DataType>
 void StatLogger<DataType>::AddValue(DataType value) {
-    _stream << value;
+    _stream << value << std::endl;
 }
 
 template<typename DataType>

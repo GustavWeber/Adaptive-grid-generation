@@ -16,15 +16,14 @@
 //#define Only_Geometry_3
 //#define CSG_Base
 //#define MI_Base
-#include <iomanip>
 #include <iostream>
 #include <ostream>
 #include <string>
-#include <valarray>
 #include <array>
 #include <SmallVector.h>
 #include <timer.h>
 #include <convex_hull_membership/contains.h>
+#include "stat_logger.h"
 
 using namespace std;
 
@@ -632,9 +631,9 @@ bool subMI(std::array<std::array<double, 3>,4> &pts,
     const int triNum = activeNum * (activeNum-1) * (activeNum - 2)/ 6;
     const int quadNum = activeNum * (activeNum - 1) * (activeNum - 2) * (activeNum - 3)/ 24;
 
-    llvm_vecsmall::SmallVector<array<int, 2>,40> pair(pairNum);
-    llvm_vecsmall::SmallVector<array<int, 3>, 100> triple(triNum);
-    llvm_vecsmall::SmallVector<array<int, 4>, 300> quad(quadNum);
+    //llvm_vecsmall::SmallVector<array<int, 2>,40> pair(pairNum);
+    //llvm_vecsmall::SmallVector<array<int, 3>, 100> triple(triNum);
+    //llvm_vecsmall::SmallVector<array<int, 4>, 300> quad(quadNum);
     //llvm_vecsmall::SmallVector<llvm_vecsmall::SmallVector<array<int, 4>, 100>, 3> multiples = multiple_indices[activeNum - 1];
 //    int pairIt = 0, triIt = 0, quadIt = 0;
 //    for (int i = 0; i < activeNum - 1; i++){
@@ -661,12 +660,12 @@ bool subMI(std::array<std::array<double, 3>,4> &pts,
         for(int j = i+1; j<activeNum; j++){
             pairIter++;
             Timer single_timer(singleFunc, [&](auto profileResult){profileTimer = combine_timer(profileTimer, profileResult);});
-            array<int, 2> pairIndices = {i, j};
-            pair[pairIter] = {activeFunc[pairIndices[0]], activeFunc[pairIndices[1]]};
+            //array<int, 2> pairIndices = {i, j};
+            //pair[pairIter] = {activeFunc[pairIndices[0]], activeFunc[pairIndices[1]]};
             array<double, 20> diff_at_point; // delta of function evaluations
             
-            int funcIndex1 = pair[pairIter][0];
-            int funcIndex2 = pair[pairIter][1];
+            int funcIndex1 = activeFunc[i];
+            int funcIndex2 = activeFunc[j];
             for (int i = 0; i < 20; i++){
                 diff_at_point[i] = valList[funcIndex1][i] - valList[funcIndex2][i];
             }
@@ -678,8 +677,8 @@ bool subMI(std::array<std::array<double, 3>,4> &pts,
                 if (!active){ // ??? this could simply be active = true
                     active = true;
                 }
-                activePair[pair[pairIter][0]][pair[pairIter][1]] = true;
-                activePair[pair[pairIter][1]][pair[pairIter][0]] = true;
+                activePair[activeFunc[i]][activeFunc[j]] = true;
+                activePair[activeFunc[j]][activeFunc[i]] = true;
                 if (!activeList[funcIndex1]){
                     activeList[funcIndex1] = true;
                     double d1 = valList[funcIndex1][1]-valList[funcIndex1][0];
@@ -762,10 +761,10 @@ bool subMI(std::array<std::array<double, 3>,4> &pts,
                 for(int k = j+1; k<activeNum; k++){
                     tripleIter++;
                     array<int, 3> tripleIndices = {i, j, k};
-                    triple[tripleIter] = {activeFunc[tripleIndices[0]], activeFunc[tripleIndices[1]], activeFunc[tripleIndices[2]]};
-                    int funcIndex1 = triple[tripleIter][0];
-                    int funcIndex2 = triple[tripleIter][1];
-                    int funcIndex3 = triple[tripleIter][2];
+                    // triple[tripleIter] = {activeFunc[tripleIndices[0]], activeFunc[tripleIndices[1]], activeFunc[tripleIndices[2]]};
+                    int funcIndex1 = activeFunc[i];
+                    int funcIndex2 = activeFunc[j];
+                    int funcIndex3 = activeFunc[k];
                     if(!(activePair[funcIndex1][funcIndex2]&&activePair[funcIndex1][funcIndex3]&&activePair[funcIndex2][funcIndex3]))
                         continue;
                     array<double, 20> diffList1, diffList2;
@@ -837,11 +836,11 @@ bool subMI(std::array<std::array<double, 3>,4> &pts,
                 for(int k = j+1; k<activeNum-1; k++){
                     for(int m = k+1; m<activeNum; m++){
                         array<int, 4> quadIndices = {i, j, k, m};
-                        quad[quadIter] = {activeFunc[quadIndices[0]], activeFunc[quadIndices[1]], activeFunc[quadIndices[2]],activeFunc[quadIndices[3]]};
-                        int funcIndex1 = quad[quadIter][0];
-                        int funcIndex2 = quad[quadIter][1];
-                        int funcIndex3 = quad[quadIter][2];
-                        int funcIndex4 = quad[quadIter][3];
+                        //quad[quadIter] = {activeFunc[quadIndices[0]], activeFunc[quadIndices[1]], activeFunc[quadIndices[2]],activeFunc[quadIndices[3]]};
+                        int funcIndex1 = activeFunc[i];
+                        int funcIndex2 = activeFunc[j];
+                        int funcIndex3 = activeFunc[k];
+                        int funcIndex4 = activeFunc[m];
                         if(!(activePair[funcIndex1][funcIndex2]&&activePair[funcIndex1][funcIndex3]&&activePair[funcIndex1][funcIndex4]&&activePair[funcIndex2][funcIndex3]&&activePair[funcIndex2][funcIndex4]&&activePair[funcIndex3][funcIndex4]))
                             continue;
                         array<double, 20> diffList1, diffList2, diffList3;
