@@ -554,7 +554,9 @@ bool subTet(std::array<std::array<double, 3>,4> &pts,
 }
 */
 
+#ifdef LOG_ACTIVE_FUNC
 StatLogger<int> ActiveFuncLogger("activeFuncs");
+#endif // LOG_ACTIVE_FUNC
 
 bool subMI(std::array<std::array<double, 3>,4> &pts,
            const llvm_vecsmall::SmallVector<std::array<double,4>, 20> &vals,
@@ -620,7 +622,9 @@ bool subMI(std::array<std::array<double, 3>,4> &pts,
     }       
 #endif
     int activeNum = activeFunc.size();
+#ifdef LOG_ACTIVE_FUNC
     ActiveFuncLogger.AddValue(activeNum);
+#endif // LOG_ACTIVE_FUNC
     if(activeNum < 2)
         return false;
     //std::cout << activeNum << std::endl; 

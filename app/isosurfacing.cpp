@@ -1,4 +1,5 @@
 //#define Check_Flip_Tets
+//#define LOG_ACTIVE_FUNC
 #include <mtet/mtet.h>
 #include <mtet/io.h>
 #include <ankerl/unordered_dense.h>
@@ -598,9 +599,11 @@ int main(int argc, const char *argv[])
         }
     });
 
+#ifdef LOG_ACTIVE_FUNC
     //Save activeFunc stats 
     ActiveFuncLogger.Flush();
-
+#endif // LOG_ACTIVE_FUNC
+    
     // save timing records
     save_timings("timings.json",time_label, profileTimer);
     // save statistics
