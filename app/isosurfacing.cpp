@@ -138,6 +138,16 @@ int main(int argc, const char *argv[])
     app.add_option("-d, --dfs", args.dfs, "Toggle DFS Mode");
     app.add_option("-c, --curve_network", args.curve_network, "Generate Curve Network only");
     CLI11_PARSE(app, argc, argv);
+
+#ifdef LOG_ACTIVE_FUNC
+    std::cout << "Logging active funcs" << std::endl;
+#endif // LOG_ACTIVE_FUNC
+#ifndef LOG_ACTIVE_FUNC
+    std::cout << "Not Logging active funcs" << std::endl;
+#endif // !LOG_ACTIVE_FUNC
+    
+        
+
     // Read mesh
     mtet::MTetMesh mesh;
     if (args.mesh_file.find(".json") != std::string::npos){
