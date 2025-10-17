@@ -615,7 +615,7 @@ int main(int argc, const char *argv[])
 #endif // LOG_ACTIVE_FUNC
     
     // save timing records
-    save_timings("timings.json",time_label, profileTimer);
+    save_timings("lreb_timings.json",time_label, profileTimer);
     // save statistics
     save_metrics("stats.json", tet_metric_labels, {(double)mesh.get_num_tets(), activeTet, min_rratio_all, min_rratio_active, (double)sub_call_two, (double) sub_call_three});
     // save the mesh output for isosurfacing tool
