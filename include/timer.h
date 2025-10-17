@@ -124,7 +124,7 @@ bool save_timings(const std::string& filename,
                   const std::array<double, timer_amount>& timings)
 {
     using json = nlohmann::json;
-    std::ofstream fout(filename.c_str(),std::ios::app);
+    std::ofstream fout(filename.c_str());
     //fout.open(filename.c_str(),std::ios::app);
     json jOut;
     for (size_t i = 0; i < timings.size(); ++i) {
